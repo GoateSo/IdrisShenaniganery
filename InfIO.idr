@@ -1,5 +1,5 @@
---for chapter 11 of Type Driven Development in Idris
-module Main
+--for chapter 11.1 and 11.2 of Type Driven Development with Idris
+module InfIO
 
 import Data.Primitives.Views
 import System
