@@ -18,7 +18,6 @@ data Interval : Type where
 syntax for "(" {x} "<-" [xs] ")" "{" [body] "}" = forLoop xs (\x => body)
 syntax [a] "to" [b] = fromTo a b
 
+
 main : IO ()
-main = for (x <- 1 to 10) {
-           printLn (x)
-       }
+main = printLn (True)

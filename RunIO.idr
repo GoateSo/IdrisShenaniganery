@@ -1,5 +1,8 @@
 -- for chapter 11.3 of Type Driven Development with Idris
+--module RunIO
+
 %default total
+-- %access public export
 
 data Count = None | More (Lazy Count)
 
@@ -18,18 +21,44 @@ namespace RunIO
     run (More x) (Do z f) = do res <- z
                                run x (f res)
 
+   (>>=) : IO a -> (a -> Inf (RunIO b)) -> RunIO b
+   (>>=) = Do
+
+
 namespace ConsoleIO
+    data Input = Answer Int
+               | QuitCmd
+
     data Command : Type -> Type where
         PutStr : String -> Command ()
         GetLine : Command String
         --expand featureset (11.3.3)
         Pure : a -> Command a
         Bind : Command a -> (a -> Command b) -> Command b
+        --exercise 2
+        FRead : String -> Command (Either FileError String)
+        FWrite : String -> String -> Command (Either FileError ())
 
+    namespace CommandBind
+        (>>=) : Command a -> (a -> Command b) -> Command b
+        (>>=) = Bind
     --limit valid commands to console commands
     data ConsoleIO : Type -> Type where
         Quit : a -> ConsoleIO a
         Do : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
+
+
+
+    (>>=) : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
+    (>>=) = Do
+
+
+    readInput : (prompt : String) -> Command Input
+    readInput prompt = do PutStr prompt
+                          answer <- GetLine
+                          if toLower answer == "quit"
+                              then Pure QuitCmd
+                              else Pure $ Answer $ cast answer
 
     runCmd : Command a -> IO a
     runCmd (PutStr x) = putStr x
@@ -38,24 +67,14 @@ namespace ConsoleIO
     runCmd (Pure x) = pure x
     runCmd (Bind c f) = do res <- runCmd c
                            runCmd (f res)
+    runCmd (FRead x) = readFile x
+    runCmd (FWrite x y) = writeFile x y
 
     run : Count -> ConsoleIO a -> IO (Maybe a)
     run _ (Quit y) = do pure $ Just y
     run None (Do y f) = pure Nothing
     run (More x) (Do y f) = do res <- runCmd y
                                run x (f res)
-
-namespace RunBind
-    (>>=) : IO a -> (a -> Inf (RunIO b)) -> RunIO b
-    (>>=) = Do
-
-namespace CommandBind
-    (>>=) : Command a -> (a -> Command b) -> Command b
-    (>>=) = Bind
-
-namespace ConsoleBind
-    (>>=) : Command a -> (a -> Inf (ConsoleIO b)) -> ConsoleIO b
-    (>>=) = Do
 
 greet : ConsoleIO ()
 greet = do PutStr "Enter a name: "
@@ -66,50 +85,81 @@ greet = do PutStr "Enter a name: "
                else do PutStr ("hello" ++ name ++ "\n")
                        greet
 
-mutual
-    correct : Stream Int -> (score : Nat) -> ConsoleIO Nat
-    correct xs score = do PutStr ("Correct!" ++ "\n")
-                          quiz xs (score + 1)
+mutual                                   --exercise 1: num questions
+    correct : Stream Int -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
+    correct xs score questions
+        = do PutStr ("Correct!" ++ "\n")
+             quiz xs (score + 1) (questions + 1)
 
-    wrong : Stream Int -> (answer : Int) -> (score : Nat) -> ConsoleIO Nat
-    wrong xs answer score = do PutStr ("Wrong! the answer is "++show answer)
-                               quiz xs score
+    wrong : Stream Int -> (answer : Int) -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
+    wrong xs answer score questions
+        = do PutStr ("Wrong! the answer is " ++ show answer ++ "\n")
+             quiz xs score (questions + 1)
 
 
-    quiz : Stream Int -> (score : Nat) -> ConsoleIO Nat
-    quiz (n1 :: n2 :: ns) score
-       = do PutStr ("current score: " ++ show score ++ "\n")
-            PutStr (show n1 ++ " * " ++ show n2 ++ " = ")
-            answer <- GetLine
-            if toLower answer == "quit" then Quit score else
-                if (cast answer == n1 * n2)
-                    then correct ns score
-                    else wrong ns (n1 * n2) score
+    quiz : Stream Int -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
+    quiz (n1 :: n2 :: ns) score questions
+       = do PutStr ("current score: " ++ show score ++ "/" ++ show questions ++ "\n")
+            input <- readInput (show n1 ++ " * " ++ show n2 ++ " = ")
+            case input of
+                  (Answer x) => if x == n1 * n2
+                                    then correct ns score questions
+                                    else wrong ns (n1 * n2) score questions
+                  QuitCmd => Quit score
 
 from : Int -> Stream Int
 from x = x :: from (x+1)
 
 
-disp : Maybe Nat -> String
-disp Nothing = ""
-disp (Just x) = cast x
+disp : Either e String -> String
+disp (Right x) = x
+disp _ = ""
 
-namespace Exercises
-    printLonger : IO ()
-    printLonger
-        = do putStr "first string: "
-             str1 <- getLine
-             putStr "second string: "
-             str2 <- getLine
-             print(max (length str1) (length str2))
+-- demo for exercise 2
+fileOp : (path : String) -> ConsoleIO ()
+fileOp path = do PutStr "\nEnter text to write to file:"
+                 text <- GetLine
+                 if toLower text == "quit"
+                     then Quit ()
+                     else do FWrite path text
+                             content <- FRead path
+                             PutStr (disp content)
+                             fileOp path
 
-    printLonger' : IO ()
-    printLonger' = (putStr "first string: ") >>= \_ =>
-                   (getLine) >>= \x =>
-                   (putStr "second string: ") >>= \_ =>
-                   (getLine) >>= \y =>
-                   printLn (max (length x) (length y))
+--exercise 3
+namespace Shell
+    data ShellCommand = Cat String
+                       | Copy String String
+                       | Exit
+                       | Invalid
+
+    processInput : String -> ShellCommand
+    processInput x = let args = words x in
+                     case args of
+                         ["exit"] => Exit
+                         ["cat", name] => Cat name
+                         ["copy", source, dest] => Copy source dest
+                         _ => Invalid
+
+
+    shell : ConsoleIO ()
+    shell = do PutStr "\n:> "
+               cmd <- GetLine
+               case processInput cmd of
+                   Exit => do PutStr "bye bye"
+                              Quit ()
+                   Invalid => do PutStr "Invalid Entry"
+                                 shell
+                   (Cat path) => do content <- FRead path
+                                    PutStr ("Content of " ++ path ++ ":" ++ disp content)
+                                    shell
+                   (Copy src dest) => do content <- FRead src
+                                         FWrite dest (disp content)
+                                         shell
+
+
 
 partial
-main : IO()
-main = printLonger'
+main : IO ()
+main = do run forever (shell)
+          pure()
