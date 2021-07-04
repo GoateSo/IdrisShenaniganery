@@ -19,5 +19,7 @@ syntax for "(" {x} "<-" [xs] ")" "{" [body] "}" = forLoop xs (\x => body)
 syntax [a] "to" [b] = fromTo a b
 
 
+syntax dont [a] = do a
+
 main : IO ()
-main = printLn (True)
+main = dont printLn True
