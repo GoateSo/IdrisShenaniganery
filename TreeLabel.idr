@@ -1,3 +1,4 @@
+--chapter 12.1
 module TreeLabel
 
 import Control.Monad.State

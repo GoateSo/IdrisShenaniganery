@@ -1,8 +1,9 @@
 -- for chapter 11.3 of Type Driven Development with Idris
 --module RunIO
 
+import MyState
+
 %default total
--- %access public export
 
 data Count = None | More (Lazy Count)
 
@@ -35,9 +36,10 @@ namespace ConsoleIO
         --expand featureset (11.3.3)
         Pure : a -> Command a
         Bind : Command a -> (a -> Command b) -> Command b
-        --exercise 2
+        -- --exercise 2
         FRead : String -> Command (Either FileError String)
         FWrite : String -> String -> Command (Either FileError ())
+
 
     namespace CommandBind
         (>>=) : Command a -> (a -> Command b) -> Command b
@@ -85,27 +87,28 @@ greet = do PutStr "Enter a name: "
                else do PutStr ("hello" ++ name ++ "\n")
                        greet
 
-mutual                                   --exercise 1: num questions
-    correct : Stream Int -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
-    correct xs score questions
-        = do PutStr ("Correct!" ++ "\n")
-             quiz xs (score + 1) (questions + 1)
+namespace Exercises
+    mutual                                   --exercise 1: num questions
+        correct : Stream Int -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
+        correct xs score questions
+            = do PutStr ("Correct!" ++ "\n")
+                 quiz xs (score + 1) (questions + 1)
 
-    wrong : Stream Int -> (answer : Int) -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
-    wrong xs answer score questions
-        = do PutStr ("Wrong! the answer is " ++ show answer ++ "\n")
-             quiz xs score (questions + 1)
+        wrong : Stream Int -> (answer : Int) -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
+        wrong xs answer score questions
+            = do PutStr ("Wrong! the answer is " ++ show answer ++ "\n")
+                 quiz xs score (questions + 1)
 
 
-    quiz : Stream Int -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
-    quiz (n1 :: n2 :: ns) score questions
-       = do PutStr ("current score: " ++ show score ++ "/" ++ show questions ++ "\n")
-            input <- readInput (show n1 ++ " * " ++ show n2 ++ " = ")
-            case input of
-                  (Answer x) => if x == n1 * n2
-                                    then correct ns score questions
-                                    else wrong ns (n1 * n2) score questions
-                  QuitCmd => Quit score
+        quiz : Stream Int -> (score : Nat) -> (questions : Nat) -> ConsoleIO Nat
+        quiz (n1 :: n2 :: ns) score questions
+           = do PutStr ("current score: " ++ show score ++ "/" ++ show questions ++ "\n")
+                input <- readInput (show n1 ++ " * " ++ show n2 ++ " = ")
+                case input of
+                      (Answer x) => if x == n1 * n2
+                                        then correct ns score questions
+                                        else wrong ns (n1 * n2) score questions
+                      QuitCmd => Quit score
 
 from : Int -> Stream Int
 from x = x :: from (x+1)
