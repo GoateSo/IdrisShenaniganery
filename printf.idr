@@ -1,4 +1,4 @@
--- 
+--
 import Data.Vect
 import System
 
