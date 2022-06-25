@@ -66,8 +66,3 @@ condListPrint = do putStr "Display? "
                        do traverse putStrLn l
                           pure ()
                    putStrLn "Done"
-
-
-
-main : IO ()
-main = pure ()

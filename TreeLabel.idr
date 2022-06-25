@@ -10,7 +10,7 @@ data Tree a = ||| empty node
               Empty
             | ||| non-empty tree node with two children and 1 contained value
               Node (Tree a) a (Tree a)
-
+              
 {-
                     Alice
                 /         \
@@ -80,3 +80,21 @@ countEmptyNode (Node l _ r) = do countEmptyNode l
                                  countEmptyNode r
 
 --4
+
+
+
+
+
+
+
+
+
+
+mutual
+    isOdd : Nat -> Bool
+    isOdd Z = False
+    isOdd (S x) = isEven x
+
+    isEven : Nat -> Bool
+    isEven Z = True
+    isEven (S x) = isOdd x

@@ -11,7 +11,7 @@ data DoorCmd : (ty : Type) -> (initState : DoorState) -> (handler : (ty -> DoorS
                     DoorJammed => DoorClosed
                     OK => DoorOpen)
     Close : DoorCmd () DoorOpen (const DoorClosed)
-    RingBell : DoorCmd () DoorClosed (const DoorClosed)
+    RingBell : DoorCmdS () DoorClosed (const DoorClosed)
     Display : String -> DoorCmd () state (const state)
 
     Pure : (res : ty) -> DoorCmd ty (stfn res) stfn
